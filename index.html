@@ -1,40 +1,61 @@
-  <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Amazon Deal Tag and Price Scraper</title>
+    <title>Vijay's Operations Scraper Suite</title>
     <style>
         body { background: #121214; color: #fff; font-family: 'Courier New', monospace; padding: 40px; text-align: center; }
-        .box { width: 500px; margin: 40px auto; background: #1a1a1e; border: 2px solid #00ffcc; padding: 25px; border-radius: 12px; box-shadow: 0 0 15px rgba(0,255,204,0.3); }
+        .box { width: 460px; margin: 40px auto; background: #1a1a1e; border: 2px solid #00ffcc; padding: 25px; border-radius: 12px; box-shadow: 0 0 15px rgba(0,255,204,0.3); }
         h2 { color: #00ffcc; margin-bottom: 20px; }
         textarea { width: 100%; padding: 10px; background: #121214; border: 1px solid #333; color: #00ffcc; font-family: monospace; border-radius: 6px; outline: none; resize: vertical; box-sizing: border-box; }
-        button { background: #00ffcc; color: #121214; border: none; padding: 10px 20px; font-weight: bold; border-radius: 6px; cursor: pointer; margin-top: 15px; font-family: monospace; }
-        button:disabled { background: #333; color: #666; cursor: not-allowed; box-shadow: none; }
-        #status { margin-top: 15px; color: #ff0055; font-weight: bold; font-size: 12px; }
+        button { background: #00ffcc; color: #121214; border: none; padding: 10px 20px; font-weight: bold; border-radius: 6px; cursor: pointer; margin-top: 15px; font-family: monospace; transition: all 0.3s ease; }
+        button:disabled { background: #333; color: #666; cursor: not-allowed; box-shadow: none; animation: none !important; }
+        
+        /* Live Status Info Tracker */
+        #status { margin-top: 15px; color: #ff0055; font-weight: bold; font-size: 12px; text-transform: uppercase; }
+        
+        /* Real-Time Processing List Container */
+        #deal-scraper-results { margin-top: 15px; max-height: 250px; overflow-y: auto; background: #121214; border-radius: 6px; padding: 8px; border: 1px solid #222; text-align: left; }
+        
+        /* Keyframe Loop for Glowing/Flashing Download Action Alert */
+        @keyframes neonPulse {
+            0% { background: #ff0055; box-shadow: 0 0 5px #ff0055; }
+            50% { background: #ff5588; box-shadow: 0 0 25px #ff0055, 0 0 10px #ff0055; }
+            100% { background: #ff0055; box-shadow: 0 0 5px #ff0055; }
+        }
+        .glow-active {
+            animation: neonPulse 1.2s infinite ease-in-out !important;
+        }
     </style>
 </head>
 <body>
 
 <div class="box">
-    <h2>⚡ Deal Tag SCRAPER</h2>
+    <h2>⚡ SCRAPER MATRIX // VIJAY</h2>
     <textarea id="asinList" rows="6" placeholder="Paste target ASINs here (One Per Line)..."></textarea>
     <br>
     <button id="runBtn">LAUNCH ENGINE</button>
     <button id="downloadBtn" style="background:#ff0055; color:#fff;" disabled>DOWNLOAD CSV</button>
-    <div id="status">EXTENSION CONNECTION OFFLINE</div>
+    
+    <div id="status">EXTENSION CONNECTION OFFLINE // JACK IN REQ</div>
+    
+    <div id="deal-scraper-results">
+        <div style="color: #666; text-align: center; font-size: 11px; padding: 20px 0;">Buffer Empty. Awaiting Engine Boot...</div>
+    </div>
 </div>
 
 <script>
     let scrapedData = [];
     const statusEl = document.getElementById('status');
+    const resultsDiv = document.getElementById('deal-scraper-results');
+    const downloadBtn = document.getElementById('downloadBtn');
 
-    // Ping loop to locate the background extension agent
+    // Ping loops verifying the background handler connection
     const pingInterval = setInterval(() => {
         document.dispatchEvent(new CustomEvent('PING_SCRAPER_EXTENSION'));
     }, 1000);
 
-    // Listener: Extension confirmed active
     document.addEventListener('SCRAPER_EXTENSION_ALIVE', () => {
         clearInterval(pingInterval);
         statusEl.textContent = "▶ ENGINE BACKEND CONNECTED // READY TO INJECT";
@@ -49,20 +70,61 @@
         statusEl.textContent = "⚡ OVERRIDING SECURITY... PROCESSING BATCHES";
         statusEl.style.color = "#ff0055";
         
+        // Reset old data visual metrics rows
+        scrapedData = [];
+        resultsDiv.innerHTML = '';
+        downloadBtn.disabled = true;
+        downloadBtn.classList.remove('glow-active');
+        
         document.dispatchEvent(new CustomEvent('START_AMAZON_SCRAPE', { detail: { asins } }));
     };
 
-    // Receiver: Handle completed batch datasets
+    // Receiver block running individual item appending displays on-screen
     document.addEventListener('SCRAPE_BATCH_COMPLETE', (e) => {
         scrapedData = e.detail.results;
+        
+        // Wipe and rebuild the list row contents
+        resultsDiv.innerHTML = '';
+        scrapedData.forEach(item => {
+            const row = document.createElement('div');
+            row.style = 'border-bottom:1px solid #252529; padding:6px 2px; font-size:11px; line-height:1.4; display:flex; justify-content:space-between;';
+            
+            const isDeal = item.dealTag !== 'No Deal Tag' && item.dealTag !== 'CRITICAL_ERR';
+            const tagColor = isDeal ? '#ff0055' : '#888';
+            const fontWeight = isDeal ? 'bold' : 'normal';
+
+            row.innerHTML = `
+              <span style="color:#00ffcc;">ID: ${item.asin}</span>
+              <span style="color:${tagColor}; font-weight:${fontWeight};">${item.dealTag}</span>
+              <span style="color:#fff; background:#222; padding:0 4px; border-radius:3px;">₹${item.dealPrice}</span>
+            `;
+            resultsDiv.appendChild(row);
+        });
+
+        // Update Global Status Text Metrics
         statusEl.textContent = `▶ SCAN COMPLETE // ${scrapedData.length} NODES COMPILED`;
         statusEl.style.color = "#00ffcc";
-        document.getElementById('downloadBtn').disabled = false;
+        
+        // Activate Glow Animation State Engine
+        downloadBtn.disabled = false;
+        downloadBtn.classList.add('glow-active');
     });
 
-    document.getElementById('downloadBtn').onclick = () => {
-        const header = ['ASIN', 'Deal Tag Status', 'Deal Price', 'Product URL'];
-        const csv = [header, ...scrapedData.map(r => [r.asin, r.dealTag, r.dealPrice, r.url])].map(r => r.join(',')).join('\n');
+    // Handle CSV Export and stop glow on user click interaction
+    downloadBtn.onclick = () => {
+        // Kill the flashing loop animation instantly on execution click
+        downloadBtn.classList.remove('glow-active');
+        downloadBtn.style.background = '#444'; // Neutral styling confirming active click
+        
+        // Construct spreadsheet with 3 parameters columns only (No URL)
+        const header = ['ASIN', 'Deal Tag Status', 'Deal Price'];
+        const rows = scrapedData.map(r => [
+            r.asin,
+            r.dealTag,
+            r.dealPrice
+        ]);
+        
+        const csv = [header, ...rows].map(r => r.join(',')).join('\n');
         const blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
@@ -71,4 +133,4 @@
     };
 </script>
 </body>
-</html>  
+</html>
