@@ -1,0 +1,74 @@
+  <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vijay's Operations Scraper Suite</title>
+    <style>
+        body { background: #121214; color: #fff; font-family: 'Courier New', monospace; padding: 40px; text-align: center; }
+        .box { width: 500px; margin: 40px auto; background: #1a1a1e; border: 2px solid #00ffcc; padding: 25px; border-radius: 12px; box-shadow: 0 0 15px rgba(0,255,204,0.3); }
+        h2 { color: #00ffcc; margin-bottom: 20px; }
+        textarea { width: 100%; padding: 10px; background: #121214; border: 1px solid #333; color: #00ffcc; font-family: monospace; border-radius: 6px; outline: none; resize: vertical; box-sizing: border-box; }
+        button { background: #00ffcc; color: #121214; border: none; padding: 10px 20px; font-weight: bold; border-radius: 6px; cursor: pointer; margin-top: 15px; font-family: monospace; }
+        button:disabled { background: #333; color: #666; cursor: not-allowed; box-shadow: none; }
+        #status { margin-top: 15px; color: #ff0055; font-weight: bold; font-size: 12px; }
+    </style>
+</head>
+<body>
+
+<div class="box">
+    <h2>⚡ SCRAPER MATRIX // VIJAY</h2>
+    <textarea id="asinList" rows="6" placeholder="Paste target ASINs here (One Per Line)..."></textarea>
+    <br>
+    <button id="runBtn">LAUNCH ENGINE</button>
+    <button id="downloadBtn" style="background:#ff0055; color:#fff;" disabled>DOWNLOAD CSV</button>
+    <div id="status">EXTENSION CONNECTION OFFLINE // JACK IN REQ</div>
+</div>
+
+<script>
+    let scrapedData = [];
+    const statusEl = document.getElementById('status');
+
+    // Ping loop to locate the background extension agent
+    const pingInterval = setInterval(() => {
+        document.dispatchEvent(new CustomEvent('PING_SCRAPER_EXTENSION'));
+    }, 1000);
+
+    // Listener: Extension confirmed active
+    document.addEventListener('SCRAPER_EXTENSION_ALIVE', () => {
+        clearInterval(pingInterval);
+        statusEl.textContent = "▶ ENGINE BACKEND CONNECTED // READY TO INJECT";
+        statusEl.style.color = "#00ffcc";
+    });
+
+    document.getElementById('runBtn').onclick = () => {
+        const txt = document.getElementById('asinList').value.trim();
+        if (!txt) return alert('No target parameters detected.');
+        
+        const asins = txt.split('\n').map(s => s.trim()).filter(Boolean);
+        statusEl.textContent = "⚡ OVERRIDING SECURITY... PROCESSING BATCHES";
+        statusEl.style.color = "#ff0055";
+        
+        document.dispatchEvent(new CustomEvent('START_AMAZON_SCRAPE', { detail: { asins } }));
+    };
+
+    // Receiver: Handle completed batch datasets
+    document.addEventListener('SCRAPE_BATCH_COMPLETE', (e) => {
+        scrapedData = e.detail.results;
+        statusEl.textContent = `▶ SCAN COMPLETE // ${scrapedData.length} NODES COMPILED`;
+        statusEl.style.color = "#00ffcc";
+        document.getElementById('downloadBtn').disabled = false;
+    });
+
+    document.getElementById('downloadBtn').onclick = () => {
+        const header = ['ASIN', 'Deal Tag Status', 'Deal Price', 'Product URL'];
+        const csv = [header, ...scrapedData.map(r => [r.asin, r.dealTag, r.dealPrice, r.url])].map(r => r.join(',')).join('\n');
+        const blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'vijay_matrix_deals_report.csv';
+        a.click();
+    };
+</script>
+</body>
+</html>  
