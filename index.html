@@ -3,36 +3,48 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vijay's Operations Scraper Suite</title>
+    <title>Amazon Deal Tag Scraper</title>
     <style>
-        body { background: #121214; color: #fff; font-family: 'Courier New', monospace; padding: 40px; text-align: center; }
-        .box { width: 460px; margin: 40px auto; background: #1a1a1e; border: 2px solid #00ffcc; padding: 25px; border-radius: 12px; box-shadow: 0 0 15px rgba(0,255,204,0.3); }
+        body { background: #121214; color: #fff; font-family: 'Courier New', monospace; padding: 40px; text-align: center; margin: 0; }
+        
+        /* Main Container Control Box */
+        .box { width: 460px; margin: 40px auto; background: #1a1a1e; border: 2px solid #00ffcc; padding: 25px; border-radius: 12px; box-shadow: 0 0 15px rgba(0,255,204,0.3); position: relative; }
         h2 { color: #00ffcc; margin-bottom: 20px; }
         textarea { width: 100%; padding: 10px; background: #121214; border: 1px solid #333; color: #00ffcc; font-family: monospace; border-radius: 6px; outline: none; resize: vertical; box-sizing: border-box; }
         button { background: #00ffcc; color: #121214; border: none; padding: 10px 20px; font-weight: bold; border-radius: 6px; cursor: pointer; margin-top: 15px; font-family: monospace; transition: all 0.3s ease; }
         button:disabled { background: #333; color: #666; cursor: not-allowed; box-shadow: none; animation: none !important; }
         
-        /* Live Status Info Tracker */
         #status { margin-top: 15px; color: #ff0055; font-weight: bold; font-size: 12px; text-transform: uppercase; }
-        
-        /* Real-Time Processing List Container */
         #deal-scraper-results { margin-top: 15px; max-height: 250px; overflow-y: auto; background: #121214; border-radius: 6px; padding: 8px; border: 1px solid #222; text-align: left; }
         
-        /* Keyframe Loop for Glowing/Flashing Download Action Alert */
+        /* Modern Floating Login Screen Overlay */
+        #login-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(10, 10, 12, 0.98); z-index: 9999999; display: flex; justify-content: center; align-items: center; transition: opacity 0.3s ease; }
+        .login-box { width: 400px; background: #1a1a1e; border: 2px solid #ff0055; padding: 30px; border-radius: 12px; box-shadow: 0 0 25px rgba(255, 0, 85, 0.4); text-align: center; }
+        .login-input { width: 100%; padding: 12px; background: #121214; border: 1px solid #444; color: #ff0055; font-family: monospace; border-radius: 6px; font-size: 14px; outline: none; margin-top: 15px; text-align: center; box-sizing: border-box; }
+        .login-input:focus { border-color: #ff0055; box-shadow: 0 0 8px rgba(255, 0, 85, 0.3); }
+        
+        /* Glowing CSV Download Button Animation */
         @keyframes neonPulse {
             0% { background: #ff0055; box-shadow: 0 0 5px #ff0055; }
             50% { background: #ff5588; box-shadow: 0 0 25px #ff0055, 0 0 10px #ff0055; }
             100% { background: #ff0055; box-shadow: 0 0 5px #ff0055; }
         }
-        .glow-active {
-            animation: neonPulse 1.2s infinite ease-in-out !important;
-        }
+        .glow-active { animation: neonPulse 1.2s infinite ease-in-out !important; }
     </style>
 </head>
 <body>
 
+<div id="login-overlay">
+    <div class="login-box">
+        <h3 style="color: #ff0055; margin: 0; font-size: 16px; letter-spacing: 1px;">⚡ SECURITY CORE // LOCKOUT MODE</h3>
+        <p style="color: #888; font-size: 11px; margin-top: 8px; text-transform: uppercase;">Provide System Passkey to Access Matrix</p>
+        <input type="password" id="passkeyInput" class="login-input" placeholder="ENTER ACCESS KEY">
+        <button id="loginBtn" style="background: #ff0055; color: #fff; width: 100%; margin-top: 15px;">INITIALIZE SESSION</button>
+    </div>
+</div>
+
 <div class="box">
-    <h2>⚡ SCRAPER MATRIX // VIJAY</h2>
+    <h2>⚡ Deal Scraper</h2>
     <textarea id="asinList" rows="6" placeholder="Paste target ASINs here (One Per Line)..."></textarea>
     <br>
     <button id="runBtn">LAUNCH ENGINE</button>
@@ -41,17 +53,89 @@
     <div id="status">EXTENSION CONNECTION OFFLINE // JACK IN REQ</div>
     
     <div id="deal-scraper-results">
-        <div style="color: #666; text-align: center; font-size: 11px; padding: 20px 0;">Buffer Empty. Awaiting Engine Boot...</div>
+        <div style="color: #666; text-align: center; font-size: 11px; padding: 20px 0;">Awaiting Engine Boot...</div>
     </div>
+    
+    <div id="session-timer" style="margin-top:15px; font-size:10px; color:#666; text-transform:uppercase;">Session Timeout: --:--</div>
 </div>
 
 <script>
+    const TARGET_PASSWORD = "PASSword";
+    const SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes execution allocation
+    
+    const loginOverlay = document.getElementById('login-overlay');
+    const passkeyInput = document.getElementById('passkeyInput');
+    const loginBtn = document.getElementById('loginBtn');
+    const sessionTimerEl = document.getElementById('session-timer');
+    
+    let countdownInterval;
+
+    // ------- Session Security Enforcement Layer -------
+    function checkCurrentSession() {
+        const authStatus = localStorage.getItem('portal_auth_active');
+        const loginTimeStamp = localStorage.getItem('portal_auth_timestamp');
+        const timeNow = Date.now();
+
+        if (authStatus === "true" && loginTimeStamp) {
+            const timeElapsed = timeNow - parseInt(loginTimeStamp, 10);
+            if (timeElapsed < SESSION_TIMEOUT_MS) {
+                loginOverlay.style.display = 'none';
+                startCountdownTracker(SESSION_TIMEOUT_MS - timeElapsed);
+                return;
+            }
+        }
+        triggerSessionLogout();
+    }
+
+    function triggerSessionLogout() {
+        localStorage.removeItem('portal_auth_active');
+        localStorage.removeItem('portal_auth_timestamp');
+        clearInterval(countdownInterval);
+        sessionTimerEl.textContent = "Session Timeout: LOCKOUT";
+        loginOverlay.style.display = 'flex';
+        passkeyInput.value = '';
+    }
+
+    function startCountdownTracker(timeLeftMs) {
+        clearInterval(countdownInterval);
+        
+        function updateTimerDisplay() {
+            if (timeLeftMs <= 0) {
+                triggerSessionLogout();
+                alert("⏳ Session Expired! You have been logged out automatically after 30 minutes.");
+                return;
+            }
+            const minutes = Math.floor(timeLeftMs / 60000);
+            const seconds = Math.floor((timeLeftMs % 60000) / 1000);
+            sessionTimerEl.textContent = `Session Timeout: ${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            timeLeftMs -= 1000;
+        }
+        
+        updateTimerDisplay();
+        countdownInterval = setInterval(updateTimerDisplay, 1000);
+    }
+
+    loginBtn.onclick = executeLoginAttempt;
+    passkeyInput.onkeypress = (e) => { if (e.key === 'Enter') executeLoginAttempt(); };
+
+    function executeLoginAttempt() {
+        if (passkeyInput.value === TARGET_PASSWORD) {
+            localStorage.setItem('portal_auth_active', 'true');
+            localStorage.setItem('portal_auth_timestamp', Date.now().toString());
+            loginOverlay.style.display = 'none';
+            startCountdownTracker(SESSION_TIMEOUT_MS);
+        } else {
+            alert("💥 SECURITY CRITICAL: Incorrect passkey signature access sequence.");
+            passkeyInput.value = '';
+        }
+    }
+
+    // ------- Background Channel Handshaking Pipelines -------
     let scrapedData = [];
     const statusEl = document.getElementById('status');
     const resultsDiv = document.getElementById('deal-scraper-results');
     const downloadBtn = document.getElementById('downloadBtn');
 
-    // Ping loops verifying the background handler connection
     const pingInterval = setInterval(() => {
         document.dispatchEvent(new CustomEvent('PING_SCRAPER_EXTENSION'));
     }, 1000);
@@ -70,7 +154,6 @@
         statusEl.textContent = "⚡ OVERRIDING SECURITY... PROCESSING BATCHES";
         statusEl.style.color = "#ff0055";
         
-        // Reset old data visual metrics rows
         scrapedData = [];
         resultsDiv.innerHTML = '';
         downloadBtn.disabled = true;
@@ -79,58 +162,45 @@
         document.dispatchEvent(new CustomEvent('START_AMAZON_SCRAPE', { detail: { asins } }));
     };
 
-    // Receiver block running individual item appending displays on-screen
     document.addEventListener('SCRAPE_BATCH_COMPLETE', (e) => {
         scrapedData = e.detail.results;
-        
-        // Wipe and rebuild the list row contents
         resultsDiv.innerHTML = '';
+        
         scrapedData.forEach(item => {
             const row = document.createElement('div');
             row.style = 'border-bottom:1px solid #252529; padding:6px 2px; font-size:11px; line-height:1.4; display:flex; justify-content:space-between;';
-            
             const isDeal = item.dealTag !== 'No Deal Tag' && item.dealTag !== 'CRITICAL_ERR';
-            const tagColor = isDeal ? '#ff0055' : '#888';
-            const fontWeight = isDeal ? 'bold' : 'normal';
-
+            
             row.innerHTML = `
               <span style="color:#00ffcc;">ID: ${item.asin}</span>
-              <span style="color:${tagColor}; font-weight:${fontWeight};">${item.dealTag}</span>
+              <span style="color:${isDeal ? '#ff0055' : '#888'}; font-weight:${isDeal ? 'bold':'normal'};">${item.dealTag}</span>
               <span style="color:#fff; background:#222; padding:0 4px; border-radius:3px;">₹${item.dealPrice}</span>
             `;
             resultsDiv.appendChild(row);
         });
 
-        // Update Global Status Text Metrics
         statusEl.textContent = `▶ SCAN COMPLETE // ${scrapedData.length} NODES COMPILED`;
         statusEl.style.color = "#00ffcc";
-        
-        // Activate Glow Animation State Engine
         downloadBtn.disabled = false;
         downloadBtn.classList.add('glow-active');
     });
 
-    // Handle CSV Export and stop glow on user click interaction
     downloadBtn.onclick = () => {
-        // Kill the flashing loop animation instantly on execution click
         downloadBtn.classList.remove('glow-active');
-        downloadBtn.style.background = '#444'; // Neutral styling confirming active click
+        downloadBtn.style.background = '#444';
         
-        // Construct spreadsheet with 3 parameters columns only (No URL)
         const header = ['ASIN', 'Deal Tag Status', 'Deal Price'];
-        const rows = scrapedData.map(r => [
-            r.asin,
-            r.dealTag,
-            r.dealPrice
-        ]);
-        
+        const rows = scrapedData.map(r => [r.asin, r.dealTag, r.dealPrice]);
         const csv = [header, ...rows].map(r => r.join(',')).join('\n');
+        
         const blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
-        a.download = 'vijay_matrix_deals_report.csv';
+        a.download = 'Deal_Tag_Report.csv';
         a.click();
     };
+
+    checkCurrentSession();
 </script>
 </body>
 </html>
